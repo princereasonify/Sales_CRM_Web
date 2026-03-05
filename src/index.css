@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900 font-sans;
+  }
+}
+
+@layer components {
+  .sidebar-item {
+    @apply flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 cursor-pointer transition-colors relative;
+  }
+  .sidebar-item.active {
+    @apply text-gray-900 bg-gray-100;
+  }
+  .kpi-card {
+    @apply bg-white rounded-xl p-5 shadow-sm border border-gray-100;
+  }
+  .btn-primary {
+    @apply px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors;
+  }
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  .table-th {
+    @apply px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50;
+  }
+  .table-td {
+    @apply px-4 py-3 text-sm text-gray-700;
+  }
+  .progress-bar {
+    @apply h-1.5 rounded-full bg-gray-200 overflow-hidden;
+  }
+  .progress-fill {
+    @apply h-full rounded-full transition-all;
+  }
+}
