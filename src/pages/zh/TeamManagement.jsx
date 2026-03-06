@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AlertTriangle, Plus } from 'lucide-react';
-import { foPerformance, fmt, statusColor } from '../../data/staticData';
+import { dashboardService } from '../../api/dashboardService';
+import { fmt, statusColor } from '../../data/staticData';
 
 function FOCard({ fo }) {
   const [showModal, setShowModal] = useState(false);
@@ -16,7 +17,7 @@ function FOCard({ fo }) {
             </div>
             <div>
               <p className="text-sm font-semibold text-gray-800">{fo.name}</p>
-              <p className="text-xs text-gray-500">{fo.territory}</p>
+              <p className="text-xs text-gray-500">{fo.territory || 'No territory assigned'}</p>
             </div>
           </div>
           <span className={`badge ${statusColor(fo.status)}`}>{fo.status}</span>
@@ -103,12 +104,24 @@ function FOCard({ fo }) {
 }
 
 export default function TeamManagement({ user }) {
+  const [foPerformance, setFoPerformance] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    dashboardService.getTeamPerformance()
+      .then(res => setFoPerformance(res.data || []))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="flex items-center justify-center h-64"><p className="text-gray-400">Loading team data...</p></div>;
+
   return (
     <div className="space-y-5 max-w-7xl">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-gray-800">Team Management</h2>
-          <p className="text-sm text-gray-500">Mumbai West Zone · {foPerformance.length} Field Officers</p>
+          <p className="text-sm text-gray-500">{foPerformance.length} Field Officers</p>
         </div>
         <div className="flex gap-2 text-xs text-gray-500">
           <span className="flex items-center gap-1"><span className="w-2 h-2 bg-green-400 rounded-full inline-block" />On Track</span>
@@ -118,8 +131,8 @@ export default function TeamManagement({ user }) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {[...foPerformance].sort((a, b) => b.targetPct - a.targetPct).map(fo => (
-          <FOCard key={fo.id} fo={fo} />
+        {foPerformance.map(fo => (
+          <FOCard key={fo.foId} fo={fo} />
         ))}
       </div>
     </div>

@@ -1,18 +1,44 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TrendingUp, Users, Clock, Target, AlertTriangle, Check, X } from 'lucide-react';
-import { zoneData, foPerformance, deals, fmt, statusColor } from '../../data/staticData';
-
-const pendingDeals = deals.filter(d => d.approvalStatus === 'Pending ZH');
+import { dashboardService } from '../../api/dashboardService';
+import { dealService } from '../../api/dealService';
+import { fmt, statusColor } from '../../data/staticData';
 
 export default function ZoneDashboard({ user }) {
   const navigate = useNavigate();
-  const pct = zoneData.targetPct;
+  const [zd, setZd] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const loadData = () => {
+    dashboardService.getZoneDashboard()
+      .then(res => setZd(res.data))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { loadData(); }, []);
+
+  if (loading) return <div className="flex items-center justify-center h-64"><p className="text-gray-400">Loading zone dashboard...</p></div>;
+  if (!zd) return <div className="flex items-center justify-center h-64"><p className="text-gray-400">No data available.</p></div>;
+
+  const pct = zd.targetPct;
+  const pendingDeals = zd.pendingDeals || [];
+  const foPerformance = zd.foPerformance || [];
+
+  const handleApprove = async (dealId, school) => {
+    try {
+      await dealService.approveDeal(dealId, { approved: true });
+      alert(`Deal for ${school} approved!`);
+      loadData();
+    } catch { alert('Failed to approve deal.'); }
+  };
 
   return (
     <div className="space-y-6 max-w-7xl">
       {/* Header */}
       <div>
-        <h2 className="text-lg font-semibold text-gray-800">{zoneData.name}</h2>
+        <h2 className="text-lg font-semibold text-gray-800">{zd.zoneName}</h2>
         <p className="text-sm text-gray-500">Zone performance overview · March 2026</p>
       </div>
 
@@ -20,25 +46,25 @@ export default function ZoneDashboard({ user }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {[
           {
-            label: 'Zone Revenue MTD', value: fmt(zoneData.revenueMTD),
-            sub: `${pct}% of ${fmt(zoneData.revenueTarget)} target`,
+            label: 'Zone Revenue MTD', value: fmt(zd.revenueMTD),
+            sub: `${pct}% of ${fmt(zd.revenueTarget)} target`,
             pct, bar: pct >= 70 ? 'bg-purple-500' : pct >= 40 ? 'bg-amber-400' : 'bg-red-400',
             icon: TrendingUp, iconBg: 'bg-purple-50', iconColor: 'text-purple-600',
           },
           {
-            label: 'Active Pipeline', value: zoneData.activePipeline,
+            label: 'Active Pipeline', value: zd.activePipeline,
             sub: 'Leads across all FOs', pct: null,
             icon: Users, iconBg: 'bg-blue-50', iconColor: 'text-blue-600',
           },
           {
-            label: 'Pending Approvals', value: zoneData.pendingApprovals,
+            label: 'Pending Approvals', value: zd.pendingApprovals,
             sub: pendingDeals.length > 0 ? 'Action required' : 'All clear',
             pct: null, warn: pendingDeals.length > 0,
             icon: Clock, iconBg: 'bg-amber-50', iconColor: 'text-amber-600',
           },
           {
-            label: 'Zone Win Rate', value: `${zoneData.winRate}%`,
-            sub: 'Month to date', pct: zoneData.winRate, bar: 'bg-teal-500',
+            label: 'Zone Win Rate', value: `${zd.winRate}%`,
+            sub: 'Month to date', pct: zd.winRate, bar: 'bg-teal-500',
             icon: Target, iconBg: 'bg-teal-50', iconColor: 'text-teal-600',
           },
         ].map(({ label, value, sub, pct: p, bar, warn, icon: Icon, iconBg, iconColor }) => (
@@ -80,11 +106,11 @@ export default function ZoneDashboard({ user }) {
                     <p className="text-xs text-gray-500 mt-0.5">
                       {deal.foName} · {fmt(deal.finalValue)} · {deal.discount}% off
                     </p>
-                    <p className="text-xs text-gray-400 mt-0.5">Submitted {deal.submittedAt}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Submitted {deal.submittedAt ? new Date(deal.submittedAt).toLocaleDateString() : ''}</p>
                   </div>
                   <div className="flex gap-2 mt-1">
                     <button
-                      onClick={() => alert(`Deal for ${deal.school} approved!`)}
+                      onClick={() => handleApprove(deal.id, deal.school)}
                       className="flex items-center gap-1 px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-xs font-medium hover:bg-green-200 transition-colors"
                     >
                       <Check size={12} />
@@ -99,9 +125,6 @@ export default function ZoneDashboard({ user }) {
                     </button>
                   </div>
                 </div>
-                <p className="text-xs text-gray-600 mt-2 bg-white rounded-lg p-2 border border-amber-100">
-                  {deal.notes || 'No notes provided.'}
-                </p>
               </div>
             ))}
           </div>
@@ -123,8 +146,8 @@ export default function ZoneDashboard({ user }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {[...foPerformance].sort((a, b) => b.targetPct - a.targetPct).map((fo, i) => (
-                  <tr key={fo.id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => navigate('/team')}>
+                {foPerformance.map((fo, i) => (
+                  <tr key={fo.foId} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => navigate('/team')}>
                     <td className="table-td">
                       <div className="flex items-center gap-2">
                         <span className="text-base">{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : ''}</span>

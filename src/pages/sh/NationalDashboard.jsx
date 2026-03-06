@@ -1,16 +1,30 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TrendingUp, Building2, DollarSign, Target } from 'lucide-react';
-import { nationalData, fmt, healthColor } from '../../data/staticData';
-
-const periods = ['Month-to-Date', 'Quarter-to-Date', 'Full FY'];
+import { dashboardService } from '../../api/dashboardService';
+import { fmt, healthColor } from '../../data/staticData';
 
 export default function NationalDashboard({ user }) {
   const navigate = useNavigate();
+  const [nd, setNd] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('Month-to-Date');
-  const nd = nationalData;
-  const maxChart = Math.max(...nd.revenueChart.map(r => r.value));
-  const maxLoss = Math.max(...nd.lossReasons.map(r => r.count));
+
+  useEffect(() => {
+    dashboardService.getNationalDashboard()
+      .then(res => setNd(res.data))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="flex items-center justify-center h-64"><p className="text-gray-400">Loading national dashboard...</p></div>;
+  if (!nd) return <div className="flex items-center justify-center h-64"><p className="text-gray-400">No data available.</p></div>;
+
+  const regions = nd.regions || [];
+  const revenueChart = nd.revenueChart || [];
+  const lossReasons = nd.lossReasons || [];
+  const maxChart = revenueChart.length > 0 ? Math.max(...revenueChart.map(r => r.value)) : 1;
+  const maxLoss = lossReasons.length > 0 ? Math.max(...lossReasons.map(r => r.count)) : 1;
 
   return (
     <div className="space-y-6 max-w-7xl">
@@ -25,7 +39,7 @@ export default function NationalDashboard({ user }) {
           onChange={e => setPeriod(e.target.value)}
           className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
         >
-          {periods.map(p => <option key={p}>{p}</option>)}
+          {['Month-to-Date', 'Quarter-to-Date', 'Full FY'].map(p => <option key={p}>{p}</option>)}
         </select>
       </div>
 
@@ -35,7 +49,7 @@ export default function NationalDashboard({ user }) {
           {
             label: 'National Revenue MTD', value: fmt(nd.revenueMTD),
             sub: `${nd.targetPct}% of ${fmt(nd.revenueTarget)}`,
-            pct: nd.targetPct, bar: 'bg-blue-500', large: true,
+            pct: nd.targetPct, bar: 'bg-blue-500',
             icon: TrendingUp, iconBg: 'bg-blue-50', iconColor: 'text-blue-600',
           },
           {
@@ -45,7 +59,7 @@ export default function NationalDashboard({ user }) {
           },
           {
             label: 'Total Pipeline Value', value: fmt(nd.pipelineValue),
-            sub: `${(nd.pipelineValue / nd.revenueTarget).toFixed(1)}x target`, pct: null,
+            sub: nd.revenueTarget > 0 ? `${(nd.pipelineValue / nd.revenueTarget).toFixed(1)}x target` : '', pct: null,
             icon: DollarSign, iconBg: 'bg-purple-50', iconColor: 'text-purple-600',
           },
           {
@@ -89,7 +103,7 @@ export default function NationalDashboard({ user }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {nd.regions.map(region => (
+              {regions.map(region => (
                 <tr key={region.id}
                   className={`hover:bg-gray-50 transition-colors cursor-pointer ${region.health === 'Weak' ? 'bg-red-50/30' : ''}`}
                   onClick={() => navigate('/region')}
@@ -122,47 +136,51 @@ export default function NationalDashboard({ user }) {
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Revenue vs Forecast */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">Revenue vs Forecast (6-Month)</h3>
-          <div className="flex items-end gap-2 h-36">
-            {nd.revenueChart.map(({ month, value }, i) => {
-              const isCurrent = i === nd.revenueChart.length - 1;
-              return (
-                <div key={month} className="flex-1 flex flex-col items-center gap-1">
-                  <span className="text-xs text-gray-500">{fmt(value).replace('₹', '')}</span>
-                  <div
-                    className={`w-full rounded-t-md ${isCurrent ? 'bg-blue-600' : 'bg-blue-200'}`}
-                    style={{ height: `${(value / maxChart) * 90}px` }}
-                  />
-                  <span className="text-xs text-gray-400">{month}</span>
-                </div>
-              );
-            })}
+        {/* Revenue Chart */}
+        {revenueChart.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <h3 className="text-sm font-semibold text-gray-700 mb-4">Revenue Trend</h3>
+            <div className="flex items-end gap-2 h-36">
+              {revenueChart.map(({ label, value }, i) => {
+                const isCurrent = i === revenueChart.length - 1;
+                return (
+                  <div key={label} className="flex-1 flex flex-col items-center gap-1">
+                    <span className="text-xs text-gray-500">{fmt(value).replace('₹', '')}</span>
+                    <div
+                      className={`w-full rounded-t-md ${isCurrent ? 'bg-blue-600' : 'bg-blue-200'}`}
+                      style={{ height: `${(value / maxChart) * 90}px` }}
+                    />
+                    <span className="text-xs text-gray-400">{label}</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Loss Reasons */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">Loss Reasons (This Month)</h3>
-          <div className="space-y-3">
-            {nd.lossReasons.map(({ reason, count }) => (
-              <div key={reason}>
-                <div className="flex justify-between text-xs mb-1">
-                  <span className="text-gray-600">{reason}</span>
-                  <span className="font-medium text-gray-800">{count} deals</span>
+        {lossReasons.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <h3 className="text-sm font-semibold text-gray-700 mb-4">Loss Reasons (This Month)</h3>
+            <div className="space-y-3">
+              {lossReasons.map(({ reason, count }) => (
+                <div key={reason}>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="text-gray-600">{reason}</span>
+                    <span className="font-medium text-gray-800">{count} deals</span>
+                  </div>
+                  <div className="progress-bar">
+                    <div
+                      className="progress-fill bg-red-400"
+                      style={{ width: `${(count / maxLoss) * 100}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="progress-bar">
-                  <div
-                    className="progress-fill bg-red-400"
-                    style={{ width: `${(count / maxLoss) * 100}%` }}
-                  />
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
+            <p className="text-xs text-gray-400 mt-4">Updated monthly · Guides pricing & product strategy</p>
           </div>
-          <p className="text-xs text-gray-400 mt-4">Updated monthly · Guides pricing & product strategy</p>
-        </div>
+        )}
       </div>
     </div>
   );

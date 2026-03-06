@@ -1,5 +1,6 @@
+import { useState, useEffect } from 'react';
 import { Bell } from 'lucide-react';
-import { notifications } from '../../data/staticData';
+import { notificationService } from '../../api/notificationService';
 import { useLocation } from 'react-router-dom';
 
 const roleColor = {
@@ -26,7 +27,16 @@ export default function TopBar({ user }) {
   const location = useLocation();
   const rc = roleColor[user.role] || roleColor.FO;
   const title = pageTitles[location.pathname] || 'EduCRM';
-  const unread = notifications.length;
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    notificationService.getNotifications()
+      .then(res => {
+        const list = res.data || res || [];
+        setUnread(Array.isArray(list) ? list.filter(n => !n.isRead).length : 0);
+      })
+      .catch(() => setUnread(0));
+  }, []);
 
   return (
     <header className="bg-white border-b border-gray-100 px-6 py-3.5 flex items-center justify-between">

@@ -3,7 +3,6 @@ import {
   LayoutDashboard, Users, ClipboardList, Activity,
   Briefcase, KanbanSquare, Map, BarChart3, FileText, LogOut,
 } from 'lucide-react';
-import { notifications } from '../../data/staticData';
 
 const roleColor = {
   FO: { accent: '#00897B', light: '#E0F2F1', name: 'Field Officer' },
@@ -37,7 +36,6 @@ const navsByRole = {
   ],
 };
 
-const unread = notifications.length;
 
 export default function Sidebar({ user, onLogout }) {
   const rc = roleColor[user.role] || roleColor.FO;
