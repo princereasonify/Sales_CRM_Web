@@ -1,105 +1,290 @@
-# EduCRM - Sales CRM Frontend
+# EduCRM — Frontend
 
-A modern, role-based Sales CRM built for education technology companies to manage school leads, deals, and team performance.
+React 18 single-page application for the EduCRM Sales CRM. Provides role-based dashboards, lead management, pipeline visualization, and deal workflows.
+
+---
+
+## How Frontend & Backend Are Connected
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        BROWSER                                  │
+│                                                                 │
+│  React App (localhost:5173)                                     │
+│  ┌─────────────┐    ┌──────────────┐    ┌───────────────────┐  │
+│  │  Pages       │───►│  API Service │───►│  Axios Instance   │  │
+│  │  (Dashboard, │    │  Layer       │    │  (src/api/axios.js)│  │
+│  │   Leads,     │    │  (src/api/)  │    │                   │  │
+│  │   Deals...)  │    │              │    │  baseURL:          │  │
+│  └─────────────┘    └──────────────┘    │  localhost:5097/api│  │
+│                                          │                   │  │
+│                                          │  Adds JWT token   │  │
+│                                          │  to every request │  │
+│                                          └────────┬──────────┘  │
+└───────────────────────────────────────────────────┼─────────────┘
+                                                    │
+                                          HTTP Request (JSON)
+                                        Authorization: Bearer <token>
+                                                    │
+                                                    ▼
+                                  ┌─────────────────────────────┐
+                                  │  .NET Backend API            │
+                                  │  (localhost:5097)             │
+                                  │                              │
+                                  │  /api/auth/login             │
+                                  │  /api/leads                  │
+                                  │  /api/activities             │
+                                  │  /api/deals                  │
+                                  │  /api/dashboard/fo           │
+                                  │  /api/notifications          │
+                                  │         │                    │
+                                  │         ▼                    │
+                                  │    PostgreSQL Database       │
+                                  └─────────────────────────────┘
+```
+
+### Connection Summary:
+1. **Frontend** runs on `http://localhost:5173` (Vite dev server)
+2. **Backend** runs on `http://localhost:5097` (ASP.NET Core)
+3. Frontend sends HTTP requests via **Axios** to backend API endpoints
+4. Backend returns **JSON responses** wrapped in `{ success, data, message }`
+5. **JWT token** is stored in `localStorage` and sent with every request
+6. On **401 Unauthorized**, frontend auto-clears token and redirects to login
+
+---
 
 ## Tech Stack
 
 | Technology | Purpose |
 |---|---|
-| React 18 | UI framework |
-| Vite 5 | Build tool & dev server |
-| React Router v6 | Client-side routing |
-| Axios | HTTP client for API calls |
-| Tailwind CSS 3 | Utility-first styling |
-| Lucide React | Icon library |
+| React 18 | UI framework (component-based) |
+| Vite 5 | Build tool & dev server (fast HMR) |
+| React Router v6 | Client-side page navigation |
+| Axios | HTTP client for API communication |
+| Tailwind CSS 3 | Utility-first CSS styling |
+| Lucide React | Modern icon library |
 
-## Prerequisites
-
-- **Node.js** 18+ and **npm** (or yarn/pnpm)
-- **Backend API** running on `http://localhost:5097` (see backend README)
-
-## Getting Started
-
-```bash
-# 1. Install dependencies
-npm install
-
-# 2. Start the development server
-npm run dev
-```
-
-The app will be available at `http://localhost:5173`.
-
-## Build for Production
-
-```bash
-npm run build      # Outputs to /dist
-npm run preview    # Preview production build locally
-```
+---
 
 ## Project Structure
 
 ```
-src/
-├── api/                    # API service layer (Axios calls)
-│   ├── axios.js            # Axios instance with JWT interceptor
-│   ├── authService.js      # Login API
-│   ├── leadService.js      # Leads CRUD, pipeline, duplicate check
-│   ├── activityService.js  # Activity log APIs
-│   ├── dealService.js      # Deals CRUD, approvals
-│   ├── dashboardService.js # Dashboard data for all roles
-│   └── notificationService.js # Notifications API
+Sales_CRM_Web/
+├── public/
+│   └── user-manual.html         ← Downloadable user manual
 │
-├── components/
-│   └── layout/
-│       ├── AppShell.jsx    # Main layout (sidebar + topbar + content)
-│       ├── Sidebar.jsx     # Role-based navigation sidebar
-│       └── TopBar.jsx      # Header with notifications & avatar
+├── src/
+│   ├── api/                     ← ★ API LAYER (connects to backend)
+│   │   ├── axios.js             ← Axios instance + JWT interceptor
+│   │   ├── authService.js       ← login(email, password)
+│   │   ├── leadService.js       ← getLeads, createLead, updateLead, deleteLead
+│   │   ├── activityService.js   ← getActivities, createActivity
+│   │   ├── dealService.js       ← getDeals, createDeal, approveDeal
+│   │   ├── dashboardService.js  ← getFoDashboard, getZoneDashboard, etc.
+│   │   └── notificationService.js ← getNotifications, markAsRead
+│   │
+│   ├── components/
+│   │   └── layout/
+│   │       ├── AppShell.jsx     ← Main layout (sidebar + topbar + page content)
+│   │       ├── Sidebar.jsx      ← Left navigation (role-based menu items)
+│   │       └── TopBar.jsx       ← Top header (page title, notifications, avatar)
+│   │
+│   ├── pages/
+│   │   ├── Login.jsx            ← Login page (email/password + quick login)
+│   │   │
+│   │   ├── fo/                  ← Field Officer pages
+│   │   │   ├── Dashboard.jsx    ← FO dashboard → dashboardService.getFoDashboard()
+│   │   │   ├── LeadsList.jsx    ← Leads table → leadService.getLeads()
+│   │   │   ├── LeadDetail.jsx   ← Lead profile → leadService.getLeadById()
+│   │   │   ├── AddLead.jsx      ← Create lead → leadService.createLead()
+│   │   │   ├── ActivityLog.jsx  ← Activities → activityService.getActivities()
+│   │   │   ├── CreateDeal.jsx   ← New deal → dealService.createDeal()
+│   │   │   └── PipelineKanban.jsx ← Kanban → leadService.getPipeline()
+│   │   │
+│   │   ├── zh/                  ← Zonal Head pages
+│   │   │   ├── ZoneDashboard.jsx ← Zone KPIs → dashboardService.getZoneDashboard()
+│   │   │   └── TeamManagement.jsx ← FO cards → dashboardService.getTeamPerformance()
+│   │   │
+│   │   ├── rh/                  ← Regional Head pages
+│   │   │   └── RegionDashboard.jsx ← Region → dashboardService.getRegionDashboard()
+│   │   │
+│   │   └── sh/                  ← Sales Head pages
+│   │       ├── NationalDashboard.jsx ← National → dashboardService.getNationalDashboard()
+│   │       └── ReportsLibrary.jsx    ← Report catalog (static UI)
+│   │
+│   ├── data/
+│   │   └── staticData.js       ← Helper functions only (fmt, colors, enums)
+│   │
+│   ├── App.jsx                  ← Root component (routing, auth state)
+│   ├── main.jsx                 ← Entry point (renders App)
+│   └── index.css                ← Tailwind imports + custom styles
 │
-├── pages/
-│   ├── Login.jsx           # Login page with quick-login buttons
-│   ├── fo/                 # Field Officer pages
-│   │   ├── Dashboard.jsx   # FO dashboard (KPIs, tasks, hot leads)
-│   │   ├── LeadsList.jsx   # Leads table with search, filter, pagination
-│   │   ├── LeadDetail.jsx  # Single lead view with activity timeline
-│   │   ├── AddLead.jsx     # Create new lead form
-│   │   ├── ActivityLog.jsx # Activity log with add activity modal
-│   │   ├── CreateDeal.jsx  # Create deal from qualified lead
-│   │   └── PipelineKanban.jsx # Visual kanban board by stage
-│   ├── zh/                 # Zonal Head pages
-│   │   ├── ZoneDashboard.jsx  # Zone KPIs, pending approvals, leaderboard
-│   │   └── TeamManagement.jsx # FO cards with performance & task assignment
-│   ├── rh/                 # Regional Head pages
-│   │   └── RegionDashboard.jsx # Region KPIs, zone comparison, territory map
-│   └── sh/                 # Sales Head pages
-│       ├── NationalDashboard.jsx # National KPIs, regional scorecard
-│       └── ReportsLibrary.jsx    # Report catalog with role-based access
-│
-├── data/
-│   └── staticData.js       # Helper functions (fmt, colors) & enums
-│
-├── App.jsx                 # Root component with routing & auth state
-├── main.jsx                # Entry point
-└── index.css               # Tailwind imports & custom styles
+├── package.json
+├── vite.config.js
+├── tailwind.config.js
+└── postcss.config.js
 ```
 
-## User Roles & Access
+---
 
-| Role | Code | Dashboard | Key Features |
+## How Each Page Connects to the Backend
+
+### Authentication Flow
+```
+Login.jsx
+  │
+  ├─ User enters email + password
+  ├─ Calls: authService.login(email, password)
+  │    └─ POST /api/auth/login → { email, password }
+  │
+  ├─ Backend returns: { success: true, data: { token, user } }
+  │
+  ├─ Stores in localStorage:
+  │    ├─ localStorage.setItem('token', token)
+  │    └─ localStorage.setItem('user', JSON.stringify(user))
+  │
+  └─ App.jsx sets user state → redirects to role dashboard
+```
+
+### API Service Layer (src/api/)
+Every page uses a service file to talk to the backend:
+
+```
+Page Component  →  Service File  →  Axios Instance  →  Backend API
+─────────────     ─────────────     ──────────────     ───────────
+Dashboard.jsx  →  dashboardService  →  api.get(...)  →  GET /api/dashboard/fo
+LeadsList.jsx  →  leadService       →  api.get(...)  →  GET /api/leads?page=1
+AddLead.jsx    →  leadService       →  api.post(...) →  POST /api/leads
+ActivityLog    →  activityService   →  api.post(...) →  POST /api/activities
+CreateDeal     →  dealService       →  api.post(...) →  POST /api/deals
+ZoneDashboard  →  dashboardService  →  api.get(...)  →  GET /api/dashboard/zone
+TopBar.jsx     →  notificationService → api.get(...) →  GET /api/notifications
+```
+
+### JWT Token Flow
+```
+1. axios.js interceptor automatically adds token to EVERY request:
+   config.headers.Authorization = `Bearer ${token}`
+
+2. If any API returns 401 (token expired/invalid):
+   - Clears localStorage
+   - Redirects to login page
+   - Exception: /auth/login 401 shows error message instead of redirect
+```
+
+---
+
+## Routing (App.jsx)
+
+| Path | Component | Role | API Used |
 |---|---|---|---|
-| Field Officer | FO | `/dashboard` | Manage leads, log activities, create deals, pipeline view |
-| Zonal Head | ZH | `/zone` | Approve deals, monitor FO performance, assign tasks |
-| Regional Head | RH | `/region` | Zone comparison, territory coverage, reports |
-| Sales Head | SH | `/national` | National overview, regional scorecard, reports library |
+| `/` | Redirect | All | — |
+| `/dashboard` | FODashboard | FO | `GET /api/dashboard/fo` |
+| `/leads` | LeadsList | FO, ZH, RH | `GET /api/leads` |
+| `/leads/:id` | LeadDetail | FO | `GET /api/leads/{id}` |
+| `/leads/new` | AddLead | FO | `POST /api/leads` |
+| `/activities` | ActivityLog | FO | `GET/POST /api/activities` |
+| `/deals/new` | CreateDeal | FO | `POST /api/deals` |
+| `/pipeline` | PipelineKanban | FO | `GET /api/leads/pipeline` |
+| `/zone` | ZoneDashboard | ZH | `GET /api/dashboard/zone` |
+| `/team` | TeamManagement | ZH | `GET /api/dashboard/team-performance` |
+| `/region` | RegionDashboard | RH | `GET /api/dashboard/region` |
+| `/national` | NationalDashboard | SH | `GET /api/dashboard/national` |
+| `/reports` | ReportsLibrary | RH, SH | — (static catalog) |
 
-## Authentication
+### Default redirects by role:
+- **FO** → `/dashboard`
+- **ZH** → `/zone`
+- **RH** → `/region`
+- **SH** → `/national`
 
-- JWT-based authentication via the backend API
-- Token stored in `localStorage` and automatically attached to all API requests
-- 401 responses trigger automatic logout and redirect to login
-- Quick-login buttons available on the login page for development/testing
+---
 
-### Test Credentials
+## API Response Format
+
+Every backend response follows this format:
+
+```json
+{
+  "success": true,
+  "message": null,
+  "data": { ... }
+}
+```
+
+For paginated lists:
+```json
+{
+  "success": true,
+  "data": {
+    "items": [ ... ],
+    "totalCount": 42,
+    "page": 1,
+    "pageSize": 10,
+    "totalPages": 5
+  }
+}
+```
+
+Frontend code pattern:
+```javascript
+// In a React component
+const [data, setData] = useState(null);
+const [loading, setLoading] = useState(true);
+
+useEffect(() => {
+  dashboardService.getFoDashboard()
+    .then(res => setData(res.data))      // res = { success, data }
+    .catch(console.error)
+    .finally(() => setLoading(false));
+}, []);
+```
+
+---
+
+## Getting Started
+
+### Prerequisites
+- Node.js 18+
+- Backend API running on `http://localhost:5097`
+
+### Install & Run
+
+```bash
+cd Sales_CRM_Web
+
+# Install dependencies
+npm install
+
+# Start dev server
+npm run dev
+```
+
+App opens at `http://localhost:5173`.
+
+### Build for Production
+
+```bash
+npm run build      # Output in /dist
+npm run preview    # Preview production build
+```
+
+---
+
+## Key Design Decisions
+
+| Decision | Why |
+|---|---|
+| **API service layer** (`src/api/`) | Centralizes all backend calls. Pages don't use Axios directly. |
+| **JWT in localStorage** | Simple token persistence across page refreshes. |
+| **401 interceptor** | Auto-logout on expired tokens (except login page). |
+| **Role-based routing** | Each role sees only relevant pages in sidebar. |
+| **Loading states** | Every page shows "Loading..." while fetching API data. |
+| **Helper functions in staticData.js** | `fmt()` for currency, color functions — shared across pages. |
+
+---
+
+## Test Credentials
 
 | Role | Email | Password |
 |---|---|---|
@@ -107,23 +292,3 @@ src/
 | Zonal Head | priya@educrm.in | zh123 |
 | Regional Head | rajesh@educrm.in | rh123 |
 | Sales Head | anita@educrm.in | sh123 |
-
-## API Configuration
-
-The API base URL is configured in `src/api/axios.js`:
-
-```js
-const api = axios.create({
-  baseURL: 'http://localhost:5097/api',
-});
-```
-
-To change the backend URL, update this file.
-
-## Key Design Decisions
-
-- **Role-based routing** — Each role sees different navigation items and dashboards
-- **API-first** — All data comes from the backend API; no hardcoded dummy data in views
-- **Optimistic loading** — Pages show loading states while fetching data
-- **Responsive** — Works on desktop and tablet screens using Tailwind's responsive utilities
-- **Minimal dependencies** — Only essential packages (React, Router, Axios, Tailwind, Lucide)
